@@ -1,4 +1,273 @@
-# This is a basic workflow to help you get started with Actions
+name: Build MWS APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "8.9"
+
+      - name: Create Android project
+        run: |
+          mkdir -p app/src/main/java/com/manu/wealthos
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.name = "MWS-MANU-WEALTH-OS"
+          include(":app")
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+          }
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.manu.wealthos'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.manu.wealthos'
+                  minSdk 24
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <application
+                  android:theme="@style/AppTheme"
+                  android:label="MWS — Manu Wealth OS">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+
+                  </activity>
+
+              </application>
+
+          </manifest>
+          EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme"
+                  parent="android:style/Theme.Material.Light.NoActionBar"/>
+          </resources>
+          EOF
+
+          cat > app/src/main/java/com/manu/wealthos/MainActivity.java <<'EOF'
+          package com.manu.wealthos;
+
+          import android.app.Activity;
+          import android.app.AlertDialog;
+          import android.os.Bundle;
+          import android.text.InputType;
+          import android.graphics.Color;
+          import android.view.View;
+          import android.widget.*;
+
+          public class MainActivity extends Activity {
+
+              LinearLayout root;
+              TextView balance;
+              double total = 0;
+
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  dashboard();
+              }
+
+              TextView text(String s, int size) {
+                  TextView v = new TextView(this);
+                  v.setText(s);
+                  v.setTextSize(size);
+                  v.setPadding(24, 18, 24, 18);
+                  return v;
+              }
+
+              void dashboard() {
+
+                  ScrollView scroll = new ScrollView(this);
+
+                  root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setPadding(20, 20, 20, 20);
+
+                  root.addView(text(
+                      "MWS — MANU WEALTH OS",
+                      26
+                  ));
+
+                  root.addView(text(
+                      "Personal Finance • Business • Investments • Farming • Real Estate • Transport",
+                      15
+                  ));
+
+                  balance = text(
+                      "Net Wealth\nKSh 0",
+                      24
+                  );
+
+                  balance.setTextColor(Color.WHITE);
+                  balance.setBackgroundColor(
+                      Color.rgb(23, 105, 170)
+                  );
+
+                  root.addView(balance);
+
+                  root.addView(text(
+                      "WEALTH AREAS",
+                      20
+                  ));
+
+                  root.addView(text(
+                      "💰 CASH & SAVINGS\nTrack money, expenses and savings",
+                      17
+                  ));
+
+                  root.addView(text(
+                      "📈 STOCKS & INVESTMENTS\nTrack shares and investments",
+                      17
+                  ));
+
+                  root.addView(text(
+                      "🏠 LAND & REAL ESTATE\nTrack land, rentals and property",
+                      17
+                  ));
+
+                  root.addView(text(
+                      "🐄 FARMING & LIVESTOCK\nTrack cows, goats, sheep, hens and crops",
+                      17
+                  ));
+
+                  root.addView(text(
+                      "🚐 TRANSPORT\nTrack vehicles and transport costs",
+                      17
+                  ));
+
+                  root.addView(text(
+                      "🛍 BUSINESS & RESALE\nTrack businesses, sales and costs",
+                      17
+                  ));
+
+                  Button income = new Button(this);
+                  income.setText("＋ Add Income / Investment");
+                  income.setOnClickListener(v -> changeMoney(true));
+                  root.addView(income);
+
+                  Button expense = new Button(this);
+                  expense.setText("－ Record Expense");
+                  expense.setOnClickListener(v -> changeMoney(false));
+                  root.addView(expense);
+
+                  scroll.addView(root);
+                  setContentView(scroll);
+              }
+
+              void changeMoney(boolean adding) {
+
+                  EditText input = new EditText(this);
+                  input.setInputType(InputType.TYPE_CLASS_NUMBER);
+                  input.setHint("Amount in KSh");
+
+                  new AlertDialog.Builder(this)
+                      .setTitle(
+                          adding
+                              ? "Add Income / Investment"
+                              : "Record Expense"
+                      )
+                      .setView(input)
+                      .setPositiveButton("SAVE", (dialog, which) -> {
+
+                          try {
+
+                              double amount = Double.parseDouble(
+                                  input.getText().toString()
+                              );
+
+                              if (adding) {
+                                  total += amount;
+                              } else {
+                                  total -= amount;
+                              }
+
+                              balance.setText(
+                                  String.format(
+                                      "Net Wealth\nKSh %,.2f",
+                                      total
+                                  )
+                              );
+
+                          } catch (Exception ignored) {
+                          }
+
+                      })
+                      .setNegativeButton("CANCEL", null)
+                      .show();
+              }
+          }
+          EOF
+
+      - name: Build APK
+        run: gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MWS-MANU-WEALTH-OS-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30# This is a basic workflow to help you get started with Actions
 
 name: CI
 
